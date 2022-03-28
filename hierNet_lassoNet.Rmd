@@ -43,7 +43,7 @@ $y = 1x_1 + 2x_2 -3x_3 + 5x_5-1x_1x_2 +2x_5x_6$
 
 
 
-```{python}
+```{python, eval = F}
 #% from prep_data import read_data, create_predicition_csv
 #% import github repository lassonet reimplementation Fabian
 path_lassonet = "/Users/mara.stadler/LRZ Sync+Share/PhD/lassonet_fab_daniele/"
@@ -53,14 +53,11 @@ from module import LassoNet
 from module import lassonet_wrapper
 ```
 
-
-```{python}
-
+### Data simulation
 
 
-torch.manual_seed(42)
-np.random.seed(42)
 
+```{r}
 #% Data simulation
 D_in = 10 # input dimension
 D_out = 1 # output dimension
@@ -68,43 +65,21 @@ H = 10 * 11 # hidden layer size
 
 N = 1000 # training samples
 batch_size = 15
-
-def generate_toy_example(N):
-    X = torch.randn(N, D_in)  
-    #%y = 1.*X[:, 3] - 1.*X[:, 3]**2 + 1.*X[:, 1] + 0.5*X[:, 2] + 2 * X[:, 4] * X[:, 5]
-    y = 1.*X[:, 0] + 2.*X[:, 1] - 3*X[:, 2] + 5*X[:, 4] - 1.*X[:, 0]*X[:, 1] + 2*X[:, 4]*X[:,5]
-    return X, y.reshape(-1,1)
-
-XX_train, yy_train = generate_toy_example(N)
-XX_valid, yy_valid = generate_toy_example(1000)
 ```
 
-```{python}
 
-XX_train.type()
+```{r}
+set.seed(42)
+X = matrix(rnorm(N * D_in), N, D_in)
+dim(X)
+y = 1 * X[, 1] + 2. * X[, 2] - 3*X[, 3] + 5*X[, 5] - 1.*X[, 1]*X[, 2] + 2*X[, 5]*X[,6]
 
+X = scale(X)
 ```
 
-```{python}
-#% standardize data
-scaler = StandardScaler()
-XX_train = scaler.fit_transform(XX_train)
-XX_valid = scaler.fit_transform(XX_valid)
 
-#% convert data to tensor format
-XX_train = torch.tensor(XX_train).float()
-XX_valid = torch.tensor(XX_valid).float()
-
-#% Numpy array (readable in R)
-XX_train_np = XX_train.detach().numpy()
-yy_train_np = yy_train.detach().numpy()
-
-XX_valid_np = XX_valid.detach().numpy()
-yy_valid_np = yy_valid.detach().numpy()
-```
 
 ```{python}
-
 class FeedForward(torch.nn.Module):
     """
     2-layer NN with RelU
@@ -151,51 +126,21 @@ class myG(torch.nn.Module):
          # compute x^T(W+W^T)/2 x
          z = torch.einsum('ij,ij->i',x,y).reshape(-1,1)
          return z
-
-
 #Lassonet1 = lassonet_wrapper(X = XX_train, Y = yy_train, NN = myG, D_in = D_in,
 #D_out = D_out, H = H, batch_size=batch_size, lambda_=0.1, M = 1.)
-
 ```
 
-
-
-
-```{python}
-beta = Lassonet1['theta']
-
-```
-
-```{r}
-round(py$beta, 2)
-```
 ## hierNet with weak hierarchy
 
+
 ```{r message=F, results='hide'}
-dim(py$XX_train_np)
-dim(py$yy_train_np)
-
-X = py$XX_train_np
-y = py$yy_train_np
-y = as.vector(y)
-```
-
-```{r}
-source("R/LassoNetR.R")
-LassoNetR(X = X, Y = y, NN = py$myG, D_in = 10L,
-D_out = 1L, H = 10L, batch_size=15L, lam=0.1, M = 1L, n_epochs = 80L)
-
-#lassonet2 = module$lassonet_wrapper(X = r_to_py(X), Y = r_to_py(y), NN = py$myG, D_in = 10L, D_out = 1L, H = 10L, batch_size=15L, lambda_ = r_to_py(0.1), M = 1L)
-
-
-```
-
-
-```{r}
 fitpath = hierNet::hierNet.path(x = X, y = y, strong = F)
 fitcv = hierNet::hierNet.cv(fitpath, x = X, y = y)
-
 # plot(fitcv)
+```
+
+
+```{r}
 fitcv$lamhat.1se
 fitfinal = hierNet::hierNet(X, y, lam = fitcv$lamhat.1se)
 fitfinal
@@ -204,146 +149,48 @@ fitfinal
 OOS prediction `hierNet`
 
 ```{r}
-X_valid = py$XX_valid_np
-y_valid = py$yy_valid_np
-y_valid = as.vector(y_valid)
-yhat <- predict(fitfinal, as.matrix(X_valid))
+#X_valid = py$XX_valid_np
+#y_valid = py$yy_valid_np
+#y_valid = as.vector(y_valid)
+#yhat <- predict(fitfinal, as.matrix(X_valid))
 
-rmse <- sqrt(mean((yhat - y_valid)^2))
-rmse
+#rmse <- sqrt(mean((yhat - y_valid)^2))
+#rmse
 ```
 
 ### LassoNet with linear + quadratic architecture
 
 
-```{python}
-# %% Create DataLoader (see https://pytorch.org/tutorials/beginner/basics/data_tutorial.html)
-class MyDataset(Dataset):
-    def __init__(self, X, Y):
-        self.X = X
-        self.Y = Y
+```{r}
+source("R/reticulate_setup.R")
+source("R/LassoNetR.R")
 
-    def __len__(self):
-        return len(self.Y)
-
-    def __getitem__(self, idx):
-        x = self.X[idx, :]
-        y = self.Y[idx]
-        return x, y
-
-
-ds = MyDataset(XX_train, yy_train)
-dl = DataLoader(ds, batch_size=batch_size, shuffle=False)
-
-valid_ds = MyDataset(XX_valid, yy_valid)
-valid_dl = DataLoader(valid_ds, batch_size=batch_size, shuffle=False)
+fitlassonet <- LassoNetR(X = X, Y = y, NN = py$myG, D_in = 10L,
+D_out = 1L, H = 10L, batch_size=15L, lam=0.1, M = 1L, n_epochs = 30L, valid = TRUE)
 ```
+Training and validation loss
 
-
-```{python}
-# %% Define non-linear part of LassoNet
-class FeedForward(torch.nn.Module):
-    """
-    2-layer NN with RelU
-    """
-
-    def __init__(self, D_in, D_out):
-        super().__init__()
-        self.D_in = D_in
-        self.D_out = D_out
-
-        self.W1 = torch.nn.Linear(D_in, H, bias=True)
-        self.relu = torch.nn.ReLU()
-        self.W2 = torch.nn.Linear(H, H)
-        self.W3 = torch.nn.Linear(H, D_out)
-        return
-
-    def forward(self, x):
-        x = self.W1(x)
-        x = self.relu(x)
-        x = self.W2(x)
-        x = self.relu(x)
-        x = self.W3(x)
-        return x
+```{r echo=F}
+{plot(unlist(fitlassonet$loss$train_loss), ylab = "Loss", xlab = "Epoch", 
+      pch = 4, type = "b")
+points(unlist(fitlassonet$loss$valid_loss), col = "red", type = "b")
+legend("topright", legend = c("Training", "Validation"), pch = c(4, 1),
+       col = c("black", "red"))}
 ```
-
-```{python}
-# %% Define HierNet
-class myG(torch.nn.Module):
-#     """
-#     2-layer NN with RelU
-#     """
-     def __init__(self, D_in, D_out):
-         super().__init__()
-         self.D_in = D_in
-         self.D_out = D_out
-         self.W1 = torch.nn.Linear(D_in, D_in, bias = False)
-         return
-
-     def forward(self, x):
-         # compute W^Tx
-         y1 = torch.matmul(self.W1.weight.t(), x.t()).t()
-         # compute Wx
-         y2 = self.W1(x)
-         y = (y2+y1)/2
-         # compute x^T(W+W^T)/2 x
-         z = torch.einsum('ij,ij->i',x,y).reshape(-1,1)
-         return z
-```
-
-
-```{python, results='hide'}
-# %% Initialize the model
-l1 = 10. # penalty parameter lambda
-M = 1.
-
-#G = FeedForward(D_in, D_out)
-#G = SE_Block(D_in, D_out)
-G = myG(D_in, D_out)
-model = LassoNet(G, lambda_=l1, M=M, skip_bias=True)
-
-loss = torch.nn.MSELoss(reduction='mean')
-
-# params of G are already included in params of model!
-for param in model.parameters():
-    print(param.size())
-
-# %% Training
-
-n_epochs = 80
-alpha0 = 1e-3  # initial step size/learning rate
-
-#opt = torch.optim.Adam(model.parameters(), lr = alpha0)
-opt = torch.optim.SGD(model.parameters(), lr=alpha0, momentum=0.9, nesterov=True)
-sched = StepLR(opt, step_size=30, gamma=0.5)
-
-# dataiter = iter(dl)
-# inputs, target = dataiter.next()
-train_info = model.do_training(loss, dl, opt=opt, lr_schedule=sched, 
- n_epochs = n_epochs, verbose=True)
-```
-
-
-```{python}
-y_pred = model(XX_valid)
-y_pred = y_pred.detach().numpy()
-lin_weights = model.skip.weight.data
-lin_weights = lin_weights.numpy()
-W1 = G.W1.weight.data 
-W1 = W1.numpy()
-```
+Linear weights
 
 ```{r}
-beta = py$lin_weights
-beta = as.vector(beta)
-names(beta) = paste0('x', 1:10)
-print(round(beta, 2))
+theta = fitlassonet$theta
+theta = as.vector(theta)
+names(theta) = paste0('x', 1:10)
+round(theta, 2)
 ```
+Quadratic weights (1st hidden layer)
 
 
 ```{r}
 library(RColorBrewer)
-W1 = py$W1
+W1 = fitlassonet$W1
 rownames(W1) = colnames(W1) = paste0('x', 1:10)
 pheatmap::pheatmap(W1, cluster_rows = F, cluster_cols = F,
                    color = colorRampPalette(rev(brewer.pal(n = 7, name =
@@ -355,112 +202,125 @@ dim(W1)
  #1.*X[:, 0] + 2.*X[:, 1] - 3*X[:, 2] + 5*X[:, 4] - 1.*X[:, 0]*X[:, 1] + 2*X[:, 4]*X[:,5]
 ```
 
-OOS prediction error
 
-```{python}
-rmse(yy_valid.detach().numpy(), model(XX_valid).detach().numpy(), squared = False)
-```
 
 
 ### LassoNet with feed forward NN architecture
 
 
-```{python, results='hide'}
-# %% Initialize the model
-l1 = 0.0001 # penalty parameter lambda
-M = 1.
-
-G = FeedForward(D_in, D_out)
-#G = SE_Block(D_in, D_out)
-#G = myG(D_in, D_out)
-modelFF = LassoNet(G, lambda_=l1, M=M, skip_bias=True)
-
-loss = torch.nn.MSELoss(reduction='mean')
-
-# params of G are already included in params of model!
-for param in modelFF.parameters():
-    print(param.size())
-
-# %% Training
-
-n_epochs = 80
-alpha0 = 1e-3  # initial step size/learning rate
-
-#opt = torch.optim.Adam(model.parameters(), lr = alpha0)
-opt = torch.optim.SGD(modelFF.parameters(), lr=alpha0, momentum=0.9, nesterov=True)
-sched = StepLR(opt, step_size=30, gamma=0.5)
-
-# dataiter = iter(dl)
-# inputs, target = dataiter.next()
-train_infoFF = modelFF.do_training(loss, dl, opt=opt, lr_schedule=sched, 
- n_epochs = n_epochs, verbose=True)
+```{r}
+fitlassonet_FF <- LassoNetR(X = X, Y = y, NN = py$FeedForward, D_in = 10L,
+D_out = 1L, H = 10L, batch_size=15L, lam=0.1, M = 1L, n_epochs = 30L, valid = T)
 ```
 
 
-```{python}
-y_pred = modelFF(XX_valid)
-y_pred = y_pred.detach().numpy()
-lin_weights = modelFF.skip.weight.data
-lin_weights = lin_weights.numpy()
-W1 = G.W1.weight.data 
-W1 = W1.numpy()
+Training and validation loss
+
+```{r echo = F}
+{plot(unlist(fitlassonet_FF$loss$train_loss), ylab = "Loss", xlab = "Epoch", 
+      pch = 4, type = "b")
+points(unlist(fitlassonet_FF$loss$valid_loss), col = "red", type = "b")
+legend("topright", legend = c("Training", "Validation"), pch = c(4, 1),
+       col = c("black", "red"))}
 ```
 
 ```{r}
-beta = py$lin_weights
-beta = as.vector(beta)
-names(beta) = paste0('x', 1:10)
-print(round(beta, 2))
+thetaFF = fitlassonet_FF$theta
+thetaFF = as.vector(thetaFF)
+names(thetaFF) = paste0('x', 1:10)
+round(thetaFF, 2)
 ```
 
 
 ```{r}
-library(RColorBrewer)
-W1 = py$W1
-#rownames(W1) = colnames(W1) = paste0('x', 1:10)
-pheatmap::pheatmap(W1, cluster_rows = F, cluster_cols = F,
+W1FF = fitlassonet_FF$W1
+colnames(W1FF) = paste0("x", 1:10)
+
+pheatmap::pheatmap(W1FF, cluster_rows = F, cluster_cols = F,
                    color = colorRampPalette(rev(brewer.pal(n = 7, name =
   "RdBu")))(100),
-  breaks = seq(-max(abs(W1)), max(abs(W1)), length.out = 100),
+  breaks = seq(-max(abs(W1FF)), max(abs(W1FF)), length.out = 100),
   display_numbers = T)
-dim(W1)
+
 
  #1.*X[:, 0] + 2.*X[:, 1] - 3*X[:, 2] + 5*X[:, 4] - 1.*X[:, 0]*X[:, 1] + 2*X[:, 4]*X[:,5]
 ```
 
-OOS prediction error
 
-```{python}
-rmse(yy_valid.detach().numpy(), modelFF(XX_valid).detach().numpy(), squared = False)
-modelFF(XX_valid).detach().numpy()
-```
+
+
 
 Now for a lambda and M path
 
-```{python}
-for l1 in np.linspace(0.1, 200, 10):
-    print("l1:", l1)
-    for M in np.linspace(1, 60, 5):
-        print("M:", M)
-        G = FeedForward(D_in, D_out)
-        modelFF = LassoNet(G, lambda_=l1, M=M, skip_bias=True)
-        
-        loss = torch.nn.MSELoss(reduction='mean')
-        # params of G are already included in params of model!
-        for param in modelFF.parameters():
-        print(param.size())
-        # %% Training
-        n_epochs = 80
-        alpha0 = 1e-3  # initial step size/learning rate
-        #opt = torch.optim.Adam(model.parameters(), lr = alpha0)
-        opt = torch.optim.SGD(modelFF.parameters(), lr=alpha0, momentum=0.9, nesterov=True)
-        sched = StepLR(opt, step_size=30, gamma=0.5)
-        # dataiter = iter(dl)
-        # inputs, target = dataiter.next()
-        train_infoFF = modelFF.do_training(loss, dl, opt=opt, lr_schedule=sched, 
-        n_epochs = n_epochs, verbose=True)
+```{r results='hide'}
+lassonet_path = list()
+lassonet_lam = list()
+n_M = 0
+M_all = c(1L, 2L, 3L, 5L, 10L, 50L, 100L, 1000L)
+lam_all = c(0.00001, 0.001, 0.1, 0.5, 1L, 2L, 3L, 5L, 10L, 20L, 40L, 60L, 100L)
+for(M in M_all){
+  n_M = n_M + 1
+  n_lam = 0
 
+  for(lam in lam_all){
+    
+
+    n_lam = n_lam + 1
+    lassonet_lam[[n_lam]] <- LassoNetR(X = X, Y = y, NN = py$FeedForward, 
+                                    D_in = 10L, D_out = 1L, H = 10L, 
+                                    batch_size=15L, 
+                                    lam=lam, M = M, 
+                                    n_epochs = 30L, valid = T)
+   
+  }
+  #names(lassonet_path) <- paste0("lam = ", c(0.1, 0.5, 1L, 3L, 5L, 10L, 20L))
+  lassonet_path[[n_M]] <- lassonet_lam
+  names(lassonet_path)[[n_M]] <- paste0("M = ", M)
+}
+   
+names(lassonet_path)
 ```
+### Plot path training loss
+
+```{r}
+n_epoch = 30
+train_loss = matrix(nrow = length(M_all), ncol = length(lam_all))
+valid_loss = matrix(nrow = length(M_all), ncol = length(lam_all))
+for(m in 1:length(M_all)){
+  for(l in 1:length(lam_all)){
+    train_loss[m, l] = lassonet_path[[m]][[l]]$loss$train_loss[[n_epoch]]
+    valid_loss[m, l] = lassonet_path[[m]][[l]]$loss$valid_loss[n_epoch]
+  }
+  
+}
+```
+
+```{r echo = F}
+{plot(log(lam_all)[3:length(lam_all)], train_loss[1, 3:length(lam_all)], 
+      type = "b", pch = 4, ylab = "Training loss", xlab = "log(lambda)",
+      ylim = c(0,1))
+for(m in 1:length(M_all)){
+  points(log(lam_all)[3:length(lam_all)], train_loss[m, 3:length(lam_all)], 
+         type = "b", col = m, pch = 4)
+}
+  legend("topleft", legend = paste0("M = ", M_all),
+         pch = 4, col = 1:length(M_all))}
+```
+
+
+```{r echo = F}
+{plot(log(lam_all)[3:length(lam_all)],valid_loss[1, 3:length(lam_all)], 
+      type = "b", pch = 4, 
+      ylab = "Validation loss", xlab = "log(lambda)", ylim = c(0,1))
+for(m in 1:length(M_all)){
+  points(log(lam_all)[3:length(lam_all)], valid_loss[m, 3:length(lam_all)], 
+         type = "b", col = m, pch = 4)
+}
+  legend("topleft", legend = paste0("M = ", M_all),
+         pch = 4, col = 1:length(M_all))}
+```
+
+
 
 
 ### Lassonet package with dense to sparse lambda path
@@ -470,16 +330,16 @@ from lassonet import LassoNetRegressor, plot_path
 import matplotlib.pyplot as plt
 ```
 
-```{python}
+```{python eval = F}
 modelLN = LassoNetRegressor(
     hidden_dims=(10,),
     eps_start=0.1,
     verbose=True,
 )
-path = modelLN.path(XX_train, yy_train)
+#path = modelLN.path(XX_train, yy_train)
 
-plot_path(modelLN, path, XX_valid, yy_valid)
-plt.show()
+#plot_path(modelLN, path, XX_valid, yy_valid)
+#plt.show()
 ```
 
 
@@ -490,7 +350,7 @@ plt.show()
 
 
 
-```{python}
+```{python eval = F}
 #modelLN.feature_importances_.sort()
 
 # feature_importances: the lambda value when that feature disappears
@@ -503,7 +363,7 @@ path.__len__()
 ```
 Linear weights
 
-```{r}
+```{r eval = F}
 betaLN = py$modelLN$feature_importances_$numpy()
 names(betaLN) = paste0("x", 1:10)
 betaLN
@@ -511,7 +371,7 @@ betaLN
 
 OOS prediction error
 
-```{python}
+```{python eval = F}
 
 rmse(yy_valid.detach().numpy(), modelLN.predict(XX_valid).detach().numpy(), squared = False)
 ```
@@ -521,7 +381,7 @@ rmse(yy_valid.detach().numpy(), modelLN.predict(XX_valid).detach().numpy(), squa
 
 ### DIABETES
 
-```{python}
+```{python eval = F}
 from sklearn.datasets import load_diabetes
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import scale
@@ -557,14 +417,14 @@ path = modelD.path(X_train, y_train)
 plot_path(modelD, path, X_test, y_test)
 ```
 
-```{python}
+```{python eval = F}
 #odelD.feature_importances_
 #from itertools import islice
 #islice(range(20), 1, 5)
 modelD.feature_importances_
 ```
 
-```{r}
+```{r eval = F}
 for(p in 1:10){
   py$modelD.load(path[-1].state_dict)
   py$modelD1.predict(X_train)
@@ -574,7 +434,7 @@ for(p in 1:10){
 
 ```
 
-```{python}
+```{python eval = F}
 #path[1]
 #modelD.score(X_train, y_train)
 for i in range(len(path)):
@@ -587,7 +447,3 @@ for i in range(len(path)):
 
 ```
 
-
-```{r}
-#py$X
-```
