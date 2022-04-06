@@ -70,7 +70,7 @@ from numpy import genfromtxt
 
 
 
-## HierNet in the LassoNetR framework
+## 1. HierNet in the LassoNetR framework
 
 
 
@@ -152,7 +152,9 @@ for(fit in fit_all){
   i = i + 1
   range = c(unlist(fit$loss$train_loss), unlist(fit$loss$valid_loss))
   {plot(unlist(fit$loss$train_loss), ylab = "Loss", xlab = "Epoch", 
-        pch = 4, type = "b", ylim = range(range), main = paste0("N = ", NN[i] ,
+        pch = 4, type = "b", #ylim = range(range), 
+        ylim = c(0, 40),
+        main = paste0("N = ", NN[i] ,
                                                                 ", p = 10"))
     points(unlist(fit$loss$valid_loss), col = "red", type = "b")
     if(i == 1){
@@ -210,7 +212,9 @@ for(fit in fit_all_p){
   i = i + 1
   range = c(unlist(fit$loss$train_loss), unlist(fit$loss$valid_loss))
   {plot(unlist(fit$loss$train_loss), ylab = "Loss", xlab = "Epoch", 
-        pch = 4, type = "b", ylim = range(range), main = paste0("N = 200", 
+        pch = 4, type = "b", #ylim = range(range),
+        ylim = c(0, 350),
+        main = paste0("N = 200", 
                                                                 ", p = ", pp[i]))
     points(unlist(fit$loss$valid_loss), col = "red", type = "b")
     if(i == 1){
@@ -223,7 +227,7 @@ for(fit in fit_all_p){
 
 
 
-## LassoNet with Feed Forward architecture
+## 2. LassoNet with Feed Forward architecture
 
 ```{python}
 from torch.nn.parameter import Parameter
@@ -302,7 +306,9 @@ for(fit in fit_allFF){
   i = i + 1
   range = c(unlist(fit$loss$train_loss), unlist(fit$loss$valid_loss))
   {plot(unlist(fit$loss$train_loss), ylab = "Loss", xlab = "Epoch", 
-        pch = 4, type = "b", ylim = range(range), main = paste0("N = ", NN[i] ,
+        pch = 4, type = "b", #ylim = range(range),
+        ylim = c(0, 50),
+        main = paste0("N = ", NN[i] ,
                                                                 ", p = 10"))
     points(unlist(fit$loss$valid_loss), col = "red", type = "b")
     if(i == 1){
@@ -321,7 +327,7 @@ fit_allFF_p <- list()
 D_out = 1L
 batch_size = 20L
 N = 200L
-H = 20L
+#H = 20L
 i = 0
 optim = c("SGD", "ADAM", "ADAM")
 for(D_in in c(10L, 100L, 1000L)){
@@ -334,7 +340,7 @@ for(D_in in c(10L, 100L, 1000L)){
     5*X[, 5] - 1.*X[, 1]*X[, 2] + 2*X[, 5]*X[,6]
   fit_allFF_p[[i]] <- LassoNetR(X = X, Y = y, 
                             NN = py$torch_hiernet, 
-                            D_in = D_in, D_out = D_out, H = H, 
+                            D_in = D_in, D_out = D_out, H = D_in, 
                             batch_size=batch_size, lam = 5L, M = 1L, 
                             n_epochs = 80L, valid = TRUE, optimizer = optim[i],
              alpha0 = al0[i])
@@ -360,7 +366,9 @@ for(fit in fit_allFF_p){
   i = i + 1
   range = c(unlist(fit$loss$train_loss), unlist(fit$loss$valid_loss))
   {plot(unlist(fit$loss$train_loss), ylab = "Loss", xlab = "Epoch", 
-        pch = 4, type = "b", ylim = range(range), main = paste0("N = 200", 
+        pch = 4, type = "b", #ylim = range(range),
+        ylim = c(0, 450),
+        main = paste0("N = 200", 
                                                                 ", p = ", pp[i]))
     points(unlist(fit$loss$valid_loss), col = "red", type = "b")
     if(i == 1){
@@ -376,14 +384,14 @@ for(fit in fit_allFF_p){
 
 
 
-## Does the validation loss get besser for larger M (M = 500)?
+### Does the validation loss get better for larger M (M = 500)?
 
 ```{r eval = F}
 fit_allFF_pM <- list()
 D_out = 1L
 batch_size = 20L
 N = 200L
-H = 20L
+#H = 20L
 i = 0
 optim = c("SGD", "ADAM", "ADAM")
 for(D_in in c(10L, 100L, 1000L)){
@@ -396,7 +404,7 @@ for(D_in in c(10L, 100L, 1000L)){
     5*X[, 5] - 1.*X[, 1]*X[, 2] + 2*X[, 5]*X[,6]
   fit_allFF_pM[[i]] <- LassoNetR(X = X, Y = y, 
                             NN = py$torch_hiernet, 
-                            D_in = D_in, D_out = D_out, H = H, 
+                            D_in = D_in, D_out = D_out, H = D_in, 
                             batch_size=batch_size, lam = 5L, M = 500L, 
                             n_epochs = 80L, valid = TRUE, optimizer = optim[i],
              alpha0 = al0[i])
@@ -421,7 +429,9 @@ for(fit in fit_allFF_pM){
   i = i + 1
   range = c(unlist(fit$loss$train_loss), unlist(fit$loss$valid_loss))
   {plot(unlist(fit$loss$train_loss), ylab = "Loss", xlab = "Epoch", 
-        pch = 4, type = "b", ylim = range(range), main = paste0("N = 200", 
+        pch = 4, type = "b", #ylim = range(range),
+        ylim = c(0, 400),
+        main = paste0("N = 200", 
                                                                 ", p = ", pp[i]))
     points(unlist(fit$loss$valid_loss), col = "red", type = "b")
     if(i == 1){
@@ -431,3 +441,7 @@ for(fit in fit_allFF_pM){
     }
 }
 ```
+
+
+
+It does get better for $p=100$ and worse for $p=1000$...

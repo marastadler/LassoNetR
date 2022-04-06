@@ -43,7 +43,7 @@ RMSprop:
 
 \-\> Adam is a combination of both
 
-## HierNet in the LassoNetR framework
+## 1\. HierNet in the LassoNetR framework
 
 ``` python
 from torch.nn.parameter import Parameter
@@ -128,7 +128,7 @@ for(D_in in c(10L, 100L, 1000L)){
 
 ![](Simulation_examples_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
-## LassoNet with Feed Forward architecture
+## 2\. LassoNet with Feed Forward architecture
 
 ``` python
 from torch.nn.parameter import Parameter
@@ -191,7 +191,7 @@ fit_allFF_p <- list()
 D_out = 1L
 batch_size = 20L
 N = 200L
-H = 20L
+#H = 20L
 i = 0
 optim = c("SGD", "ADAM", "ADAM")
 for(D_in in c(10L, 100L, 1000L)){
@@ -204,7 +204,7 @@ for(D_in in c(10L, 100L, 1000L)){
     5*X[, 5] - 1.*X[, 1]*X[, 2] + 2*X[, 5]*X[,6]
   fit_allFF_p[[i]] <- LassoNetR(X = X, Y = y, 
                             NN = py$torch_hiernet, 
-                            D_in = D_in, D_out = D_out, H = H, 
+                            D_in = D_in, D_out = D_out, H = D_in, 
                             batch_size=batch_size, lam = 5L, M = 1L, 
                             n_epochs = 80L, valid = TRUE, optimizer = optim[i],
              alpha0 = al0[i])
@@ -213,14 +213,14 @@ for(D_in in c(10L, 100L, 1000L)){
 
 ![](Simulation_examples_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
-## Does the validation loss get besser for larger M (M = 500)?
+### Does the validation loss get better for larger M (M = 500)?
 
 ``` r
 fit_allFF_pM <- list()
 D_out = 1L
 batch_size = 20L
 N = 200L
-H = 20L
+#H = 20L
 i = 0
 optim = c("SGD", "ADAM", "ADAM")
 for(D_in in c(10L, 100L, 1000L)){
@@ -233,7 +233,7 @@ for(D_in in c(10L, 100L, 1000L)){
     5*X[, 5] - 1.*X[, 1]*X[, 2] + 2*X[, 5]*X[,6]
   fit_allFF_pM[[i]] <- LassoNetR(X = X, Y = y, 
                             NN = py$torch_hiernet, 
-                            D_in = D_in, D_out = D_out, H = H, 
+                            D_in = D_in, D_out = D_out, H = D_in, 
                             batch_size=batch_size, lam = 5L, M = 500L, 
                             n_epochs = 80L, valid = TRUE, optimizer = optim[i],
              alpha0 = al0[i])
@@ -241,3 +241,5 @@ for(D_in in c(10L, 100L, 1000L)){
 ```
 
 ![](Simulation_examples_files/figure-gfm/unnamed-chunk-25-1.png)<!-- -->
+
+It does get better for \(p=100\) and worse for \(p=1000\)…
