@@ -36,6 +36,8 @@ RMSprop:
 
 -> Adam is a combination of both
 
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,  dpi = 300)
 
